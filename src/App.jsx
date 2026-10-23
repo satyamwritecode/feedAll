@@ -9,6 +9,7 @@ import ProviderDashboard from './views/ProviderDashboard';
 import NgoDashboard from './views/NgoDashboard';
 import AdminDashboard from './views/AdminDashboard';
 
+import { supabase } from './lib/supabase';
 import { BackendService } from './services/backendService';
 import {
   initialProviderStats,
@@ -46,7 +47,42 @@ export default function App() {
   // Toast feedback state
   const [notification, setNotification] = useState(null);
 
-  // Load all initial data from Supabase PostgreSQL database
+  // 1. Restore active Supabase session & listen for auth state changes
+  useEffect(() => {
+    async function restoreSession() {
+      try {
+        const user = await BackendService.getCurrentUser();
+        if (user) {
+          setCurrentUser(user);
+          setCurrentRole(user.role);
+        }
+      } catch (err) {
+        console.error('Error restoring Supabase Auth session:', err);
+      }
+    }
+
+    restoreSession();
+
+    // Listen to Supabase auth events (login, logout, token refresh)
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+        const user = await BackendService.getCurrentUser();
+        if (user) {
+          setCurrentUser(user);
+          setCurrentRole(user.role);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setCurrentRole('landing');
+      }
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
+
+  // 2. Load all initial data from Supabase PostgreSQL database
   useEffect(() => {
     async function loadBackendData() {
       try {
@@ -105,8 +141,9 @@ export default function App() {
   };
 
   // Sign Out Handler
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     const prevName = currentUser?.name;
+    await BackendService.signOut();
     setCurrentUser(null);
     setCurrentRole('landing');
     showNotification(`${prevName || 'User'} signed out successfully.`, 'info');

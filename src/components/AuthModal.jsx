@@ -12,7 +12,8 @@ import {
   ArrowRight, 
   CheckCircle2, 
   Sparkles,
-  FileBadge
+  FileBadge,
+  AlertCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { demoAccounts } from '../data/mockData';
@@ -30,12 +31,15 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, initialTab 
   const [location, setLocation] = useState('New Delhi');
   const [contactName, setContactName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   if (!isOpen) return null;
 
   // Auto-fill demo credentials
   const autofillDemo = (roleKey) => {
     setSelectedRole(roleKey);
+    setActiveTab('signin');
     const demo = demoAccounts[roleKey];
     setEmail(demo.email);
     setPassword('Feedall@2026!');
@@ -43,34 +47,65 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, initialTab 
     setFssaiNo(demo.fssai);
     setLocation(demo.location);
     setContactName(demo.contactPerson);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setErrorMessage(null);
+    setSuccessMessage(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
 
     try {
-      const userData = await BackendService.loginOrRegisterUser({
-        name: orgName || (selectedRole === 'provider' ? 'The Grand Oberoi Palace' : selectedRole === 'ngo' ? 'Robin Hood Army Fleet' : 'Feedall Compliance Admin'),
-        email: email || `${selectedRole}@feedall.org`,
-        password: password || 'Feedall@2026!',
-        role: selectedRole,
-        fssai: fssaiNo || (selectedRole === 'provider' ? 'FSSAI-10020011004523' : 'FSSAI-21419550000312'),
-        location: location || 'New Delhi',
-        contactPerson: contactName || 'Authorized Officer',
-        avatar: selectedRole === 'provider' ? '🏨' : selectedRole === 'ngo' ? '🤝' : '🛡️'
-      });
+      if (activeTab === 'signin') {
+        const userData = await BackendService.signIn({
+          email: email || demoAccounts[selectedRole]?.email,
+          password: password || 'Feedall@2026!'
+        });
 
-      confetti({
-        particleCount: 60,
-        spread: 60,
-        origin: { y: 0.6 }
-      });
+        confetti({
+          particleCount: 60,
+          spread: 60,
+          origin: { y: 0.6 }
+        });
 
-      onLoginSuccess(userData);
-      onClose();
+        onLoginSuccess(userData);
+        onClose();
+      } else {
+        const result = await BackendService.signUp({
+          email,
+          password,
+          role: selectedRole,
+          name: orgName,
+          fssai: fssaiNo,
+          location,
+          contactPerson: contactName,
+          avatar: selectedRole === 'provider' ? '🏨' : selectedRole === 'ngo' ? '🤝' : '🛡️'
+        });
+
+        if (result.requiresEmailConfirmation) {
+          setSuccessMessage(result.message);
+          setActiveTab('signin');
+        } else {
+          confetti({
+            particleCount: 60,
+            spread: 60,
+            origin: { y: 0.6 }
+          });
+          onLoginSuccess(result);
+          onClose();
+        }
+      }
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('Supabase Auth error:', err);
+      setErrorMessage(err.message || 'Authentication failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -116,7 +151,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, initialTab 
           <div className="mt-6 flex rounded-2xl bg-forest-950/80 p-1 border border-forest-800">
             <button
               type="button"
-              onClick={() => setActiveTab('signin')}
+              onClick={() => handleTabChange('signin')}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'signin'
                   ? 'bg-brand-orange text-white shadow-md'
@@ -127,7 +162,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, initialTab 
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('signup')}
+              onClick={() => handleTabChange('signup')}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'signup'
                   ? 'bg-brand-orange text-white shadow-md'
@@ -142,6 +177,21 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, initialTab 
         {/* Form Body */}
         <div className="p-6 sm:p-8 space-y-6">
           
+          {/* Status / Feedback Banners */}
+          {errorMessage && (
+            <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5 shadow-sm animate-fadeIn">
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+              <div className="flex-1 font-medium leading-relaxed">{errorMessage}</div>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5 shadow-sm animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="flex-1 font-medium leading-relaxed">{successMessage}</div>
+            </div>
+          )}
+
           {/* Quick Demo Autofill Helpers */}
           <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
             <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-2">
@@ -365,7 +415,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, initialTab 
                 {activeTab === 'signin' ? "Don't have an enterprise account? " : "Already registered? "}
                 <button
                   type="button"
-                  onClick={() => setActiveTab(activeTab === 'signin' ? 'signup' : 'signin')}
+                  onClick={() => handleTabChange(activeTab === 'signin' ? 'signup' : 'signin')}
                   className="text-brand-orange font-bold hover:underline"
                 >
                   {activeTab === 'signin' ? 'Register Now' : 'Sign In'}

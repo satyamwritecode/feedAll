@@ -111,62 +111,126 @@ const mapFeedbackFromDb = (row) => ({
 
 export const BackendService = {
   // ==========================================
-  // 1. AUTH & PROFILES
+  // 1. SUPABASE AUTH & PROFILES
   // ==========================================
-  async loginOrRegisterUser({ email, password, role, name, fssai, location, contactPerson, avatar }) {
-    try {
-      const cleanEmail = email.toLowerCase().trim();
-      const userId = `usr_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  async signIn({ email, password }) {
+    const cleanEmail = email.toLowerCase().trim();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password
+    });
 
-      // Check if profile exists
-      const { data: existing, error: selectErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('email', cleanEmail)
-        .maybeSingle();
-
-      if (existing) {
-        return {
-          id: existing.id,
-          name: existing.name,
-          email: existing.email,
-          role: existing.role,
-          fssai: existing.fssai,
-          location: existing.location,
-          contactPerson: existing.contact_person,
-          avatar: existing.avatar
-        };
+    if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        throw new Error('Invalid email or password. Please check your credentials or register a new account.');
       }
+      if (error.code === 'email_not_confirmed' || error.message.includes('Email not confirmed')) {
+        throw new Error('Email not confirmed yet. Please verify your email address to continue.');
+      }
+      throw new Error(error.message);
+    }
 
-      // If new profile, insert into public.profiles
-      const newProfile = {
-        id: userId,
-        email: cleanEmail,
-        name: name || (role === 'provider' ? 'Grand Oberoi Palace' : role === 'ngo' ? 'Robin Hood Army Fleet' : 'Feedall Compliance Admin'),
-        role: role || 'provider',
-        fssai: fssai || 'FSSAI-PENDING-VERIFY',
-        location: location || 'New Delhi, India',
-        contact_person: contactPerson || 'Authorized Officer',
-        avatar: avatar || (role === 'provider' ? '🏨' : role === 'ngo' ? '🤝' : '🛡️')
+    if (!data?.user) {
+      throw new Error('No user returned from Supabase authentication.');
+    }
+
+    // Fetch user profile from public.profiles
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    if (profile) {
+      return {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role,
+        fssai: profile.fssai,
+        location: profile.location,
+        contactPerson: profile.contact_person,
+        avatar: profile.avatar
       };
+    }
 
-      const { data: inserted, error: insertErr } = await supabase
-        .from('profiles')
-        .insert([newProfile])
-        .select()
-        .single();
+    // If profile doesn't exist yet, create it from user metadata
+    const userMeta = data.user.user_metadata || {};
+    const newProfile = {
+      id: data.user.id,
+      email: cleanEmail,
+      name: userMeta.name || cleanEmail.split('@')[0],
+      role: userMeta.role || 'provider',
+      fssai: userMeta.fssai || 'FSSAI-LIC-10020011004523',
+      location: userMeta.location || 'New Delhi',
+      contact_person: userMeta.contactPerson || 'Authorized Officer',
+      avatar: userMeta.avatar || (userMeta.role === 'ngo' ? '🤝' : userMeta.role === 'admin' ? '🛡️' : '🏨')
+    };
 
-      if (insertErr) {
-        console.warn('Profile insert warning:', insertErr.message);
-        return {
-          id: userId,
-          ...newProfile,
-          contactPerson: newProfile.contact_person
-        };
+    await supabase.from('profiles').upsert([newProfile]);
+
+    return {
+      id: newProfile.id,
+      name: newProfile.name,
+      email: newProfile.email,
+      role: newProfile.role,
+      fssai: newProfile.fssai,
+      location: newProfile.location,
+      contactPerson: newProfile.contact_person,
+      avatar: newProfile.avatar
+    };
+  },
+
+  async signUp({ email, password, role, name, fssai, location, contactPerson, avatar }) {
+    const cleanEmail = email.toLowerCase().trim();
+    const chosenRole = role || 'provider';
+    const chosenName = name || (chosenRole === 'provider' ? 'The Grand Oberoi Palace' : chosenRole === 'ngo' ? 'Robin Hood Army Fleet' : 'Feedall Compliance Admin');
+    const chosenFssai = fssai || (chosenRole === 'provider' ? 'FSSAI-10020011004523' : 'FSSAI-21419550000312');
+    const chosenLocation = location || 'New Delhi';
+    const chosenContact = contactPerson || 'Authorized Officer';
+    const chosenAvatar = avatar || (chosenRole === 'provider' ? '🏨' : chosenRole === 'ngo' ? '🤝' : '🛡️');
+
+    const { data, error } = await supabase.auth.signUp({
+      email: cleanEmail,
+      password,
+      options: {
+        data: {
+          name: chosenName,
+          role: chosenRole,
+          fssai: chosenFssai,
+          location: chosenLocation,
+          contactPerson: chosenContact,
+          avatar: chosenAvatar
+        }
       }
+    });
 
-      // If registered as an NGO, also register application in ngo_verifications for Admin oversight
-      if (role === 'ngo') {
+    if (error) {
+      if (error.message.includes('already registered') || error.message.includes('already exists')) {
+        throw new Error('This email is already registered. Please switch to "Sign In".');
+      }
+      throw new Error(error.message);
+    }
+
+    const userId = data.user?.id || `usr_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+    // Create or update profile in public.profiles
+    const newProfile = {
+      id: userId,
+      email: cleanEmail,
+      name: chosenName,
+      role: chosenRole,
+      fssai: chosenFssai,
+      location: chosenLocation,
+      contact_person: chosenContact,
+      avatar: chosenAvatar
+    };
+
+    try {
+      await supabase.from('profiles').upsert([newProfile]);
+
+      // If registered as an NGO, also add an application to ngo_verifications
+      if (chosenRole === 'ngo') {
         const ngoAppId = `NGO-REG-${Math.floor(400 + Math.random() * 599)}`;
         const verificationRow = {
           id: ngoAppId,
@@ -189,29 +253,110 @@ export const BackendService = {
         };
         await supabase.from('ngo_verifications').insert([verificationRow]);
       }
+    } catch (insertErr) {
+      console.warn('Profile sync warning:', insertErr);
+    }
+
+    // Check if session was returned or if email confirmation is pending
+    if (!data.session) {
+      // Try immediate sign-in in case auto-confirm is active
+      try {
+        const signInRes = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password
+        });
+        if (signInRes.data?.session && signInRes.data.user) {
+          return {
+            id: signInRes.data.user.id,
+            name: newProfile.name,
+            email: newProfile.email,
+            role: newProfile.role,
+            fssai: newProfile.fssai,
+            location: newProfile.location,
+            contactPerson: newProfile.contact_person,
+            avatar: newProfile.avatar
+          };
+        }
+      } catch (e) {
+        // Fall through
+      }
 
       return {
-        id: inserted.id,
-        name: inserted.name,
-        email: inserted.email,
-        role: inserted.role,
-        fssai: inserted.fssai,
-        location: inserted.location,
-        contactPerson: inserted.contact_person,
-        avatar: inserted.avatar
-      };
-    } catch (err) {
-      console.error('Error in loginOrRegisterUser:', err);
-      return {
-        email,
-        name: name || 'Authorized Partner',
-        role: role || 'provider',
-        fssai: fssai || 'FSSAI-10020011004523',
-        location: location || 'New Delhi',
-        contactPerson: contactPerson || 'Authorized Officer',
-        avatar: role === 'provider' ? '🏨' : role === 'ngo' ? '🤝' : '🛡️'
+        requiresEmailConfirmation: true,
+        message: 'Account created in Supabase! If email confirmation is enabled, please check your inbox and verify your email.',
+        email: cleanEmail,
+        name: newProfile.name,
+        role: newProfile.role
       };
     }
+
+    return {
+      id: data.user.id,
+      name: newProfile.name,
+      email: newProfile.email,
+      role: newProfile.role,
+      fssai: newProfile.fssai,
+      location: newProfile.location,
+      contactPerson: newProfile.contact_person,
+      avatar: newProfile.avatar
+    };
+  },
+
+  async getCurrentUser() {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session || !session.user) return null;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', session.user.email)
+        .maybeSingle();
+
+      if (profile) {
+        return {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          role: profile.role,
+          fssai: profile.fssai,
+          location: profile.location,
+          contactPerson: profile.contact_person,
+          avatar: profile.avatar
+        };
+      }
+
+      const meta = session.user.user_metadata || {};
+      return {
+        id: session.user.id,
+        email: session.user.email,
+        name: meta.name || session.user.email.split('@')[0],
+        role: meta.role || 'provider',
+        fssai: meta.fssai || 'FSSAI-LIC-10020011004523',
+        location: meta.location || 'New Delhi',
+        contactPerson: meta.contactPerson || 'Authorized Officer',
+        avatar: meta.avatar || (meta.role === 'ngo' ? '🤝' : meta.role === 'admin' ? '🛡️' : '🏨')
+      };
+    } catch (err) {
+      console.error('Error fetching current user:', err);
+      return null;
+    }
+  },
+
+  async signOut() {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+  },
+
+  // Backward compatibility helper
+  async loginOrRegisterUser(params) {
+    if (params.activeTab === 'signup') {
+      return this.signUp(params);
+    }
+    return this.signIn(params);
   },
 
   // ==========================================
