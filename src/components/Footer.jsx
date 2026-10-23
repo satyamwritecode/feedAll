@@ -27,7 +27,7 @@ export default function Footer({ setCurrentRole }) {
               </div>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              India's premier enterprise B2B surplus food redistribution marketplace connecting corporate hotels and commercial banquet kitchens with verified NGOs.
+              India's premier enterprise surplus food redistribution marketplace connecting corporate hotels and commercial banquet kitchens with verified NGOs.
             </p>
             <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
               <ShieldCheck className="w-4 h-4 text-brand-orange" />

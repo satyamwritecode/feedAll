@@ -49,7 +49,7 @@ export default function AdminDashboard({
       origin: { y: 0.6 }
     });
 
-    showNotification(`FSSAI license verified for ${ngoName}! Status updated in Supabase.`, 'success');
+    showNotification(`FSSAI license verified for ${ngoName}! Status updated.`, 'success');
   };
 
   const handleReject = async (ngoId, ngoName) => {
@@ -63,7 +63,7 @@ export default function AdminDashboard({
     // Persist status change to Supabase database
     await BackendService.updateNgoVerificationStatus(ngoId, 'Rejected');
 
-    showNotification(`Registration rejected for ${ngoName}. Document discrepancy logged in Supabase.`, 'error');
+    showNotification(`Registration rejected for ${ngoName}. Document discrepancy logged.`, 'error');
   };
 
   const filteredQueue = verificationQueue.filter(item => 
@@ -94,7 +94,7 @@ export default function AdminDashboard({
               Platform Oversight & Compliance Administration
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Monitoring B2B surplus redistribution protocols, cold-chain safety integrity, and NGO statutory credentials.
+              Monitoring surplus redistribution protocols, cold-chain safety integrity, and NGO statutory credentials.
             </p>
           </div>
         </div>

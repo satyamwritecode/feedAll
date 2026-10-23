@@ -118,7 +118,7 @@ export default function ProviderDashboard({
         origin: { y: 0.7 }
       });
 
-      showNotification('Surplus donation saved to Supabase & broadcasted to nearby NGOs!', 'success');
+      showNotification('Surplus donation saved & broadcasted to nearby NGOs!', 'success');
     } catch (err) {
       console.error('Error broadcasting surplus:', err);
       showNotification('Error saving food surplus to backend', 'error');
@@ -147,7 +147,7 @@ export default function ProviderDashboard({
     }));
 
     await BackendService.updateListingStatus(listingId, updates);
-    showNotification('NGO accepted donation! Driver dispatched & updated in Supabase.', 'info');
+    showNotification('NGO accepted donation! Driver dispatched.', 'info');
   };
 
   const handleMoveToCompleted = async (listingId) => {
@@ -174,7 +174,7 @@ export default function ProviderDashboard({
       spread: 60,
       origin: { y: 0.5 }
     });
-    showNotification('Food handover completed! Logged to Supabase.', 'success');
+    showNotification('Food handover completed!', 'success');
   };
 
   const pendingListings = activeListings.filter(i => i.status === 'Pending Match');

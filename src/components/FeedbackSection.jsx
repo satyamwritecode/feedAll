@@ -109,7 +109,7 @@ export default function FeedbackSection({ feedbacks, setFeedbacks, showNotificat
       origin: { y: 0.6 }
     });
 
-    showNotification('Feedback & Quality Story saved to Supabase backend!', 'success');
+    showNotification('Feedback & Quality Story saved successfully!', 'success');
   };
 
   const filteredFeedbacks = feedbacks.filter(item => {

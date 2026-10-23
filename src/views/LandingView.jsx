@@ -58,7 +58,7 @@ export default function LandingView({
             </div>
 
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold font-heading tracking-tight text-white max-w-4xl mx-auto leading-tight">
-              B2B Surplus Food Redistribution for <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-orange via-orange-400 to-yellow-400">Corporate Hospitality</span>
+              Surplus Food Redistribution for <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-orange via-orange-400 to-yellow-400">Corporate Hospitality</span>
             </h1>
 
             <p className="text-sm sm:text-lg text-emerald-100/90 max-w-2xl mx-auto leading-relaxed">

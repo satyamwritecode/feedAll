@@ -69,9 +69,6 @@ export default function Navbar({
                 <span className="font-heading font-extrabold text-2xl tracking-tight text-white">
                   Feed<span className="text-brand-orange">all</span>
                 </span>
-                <span className="text-[10px] bg-brand-orange text-white font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
-                  B2B
-                </span>
               </div>
               <span className="text-[10px] tracking-[0.16em] uppercase text-emerald-200/80 font-semibold font-heading">
                 Food For A Better Tomorrow
@@ -145,13 +142,13 @@ export default function Navbar({
           {/* Right Action Controls: Login / Sign Up / User Profile */}
           <div className="flex items-center gap-3">
             
-            {/* Live Supabase Backend Status Badge */}
+            {/* Live Backend Status Badge */}
             <div 
               className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-[11px] font-semibold text-emerald-300 shadow-inner" 
-              title="Supabase PostgreSQL Active & Synchronized"
+              title="Cloud Active & Synchronized"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="font-mono text-[10px] tracking-wide">Supabase Live</span>
+              <span className="font-mono text-[10px] tracking-wide">Live</span>
             </div>
 
             {/* Live Alerts Bell */}

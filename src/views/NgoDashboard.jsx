@@ -182,7 +182,7 @@ export default function NgoDashboard({
       origin: { y: 0.6 }
     });
 
-    showNotification(`Surplus batch claimed in Supabase! Van dispatched to ${match.hotelName}.`, 'success');
+    showNotification(`Surplus batch claimed! Van dispatched to ${match.hotelName}.`, 'success');
   };
 
   const advanceTrackerStep = async (trackerId) => {
@@ -223,7 +223,7 @@ export default function NgoDashboard({
       origin: { y: 0.7 }
     });
 
-    showNotification('Pickup telemetry step updated in Supabase database!', 'info');
+    showNotification('Pickup telemetry step updated!', 'info');
   };
 
   return (
